@@ -1,4 +1,4 @@
-import csv
+import sqlite3
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
@@ -18,17 +18,32 @@ if get_url == url:
     names = driver.find_elements(By.CSS_SELECTOR, "span.produc-card__name__link")
     prices = driver.find_elements(By.CSS_SELECTOR, "span.value")
 
+# fazer campo de status para manter o track das impressoras availables
+# add id nos data
+
 data = []
 for name, price in zip(names, prices):
-    data.append([name.text, price.text])
+    data.append((name.text, price.text))
 
 driver.quit()
 
-# Write data to a CSV file
-csv_file = "3d_printer_info.csv"
-with open(csv_file, "w", newline="", encoding="utf-8") as file:
-    writer = csv.writer(file)
-    writer.writerow(["Name", "Price"])
-    writer.writerows(data)
+# Create a SQLite database connection
+conn = sqlite3.connect("printers.db")
 
-print(f"Data saved to {csv_file}")
+# Create a cursor object to execute SQL queries
+cursor = conn.cursor()
+
+# Create a table to store the data
+cursor.execute("CREATE TABLE IF NOT EXISTS printers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, price TEXT, status TEXT)")
+
+
+# Insert data into the table
+cursor.executemany("INSERT INTO printers VALUES (?, ?)", data)
+
+# Commit the changes to the database
+conn.commit()
+
+# Close the database connection
+conn.close()
+
+print("Data saved to SQLite database.")
