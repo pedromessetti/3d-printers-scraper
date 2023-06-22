@@ -1,4 +1,5 @@
 import re
+import configparser
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
@@ -8,10 +9,30 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 
 class Scraper:
-    def __init__(self, url, css_selector_name, css_selector_price):
-        self.url = url
-        self.css_selector_name = css_selector_name
-        self.css_selector_price = css_selector_price
+    def __init__(self, website_name):
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+
+        website_config = config[website_name]
+
+        self.url = website_config["url"]
+        self.name_selector = website_config["name_selector"]
+        self.price_selector = website_config["price_selector"]
+
+        self.driver = None
+        self.wait = None
+
+        self.setup_driver()
+
+    
+    def setup_driver(self):
+        try:
+            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+            self.wait = WebDriverWait(self.driver, 10)
+        except Exception as error:
+            print("Error setting up the driver\n", error)
+            exit(1)
+
 
     @staticmethod
     def extract_website_name(url):
@@ -26,25 +47,23 @@ class Scraper:
 
     def scrape_data(self):
         try:
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-
-            wait = WebDriverWait(driver, 10)
-            driver.get(self.url)
-            get_url = driver.current_url
-            wait.until(EC.url_to_be(self.url))
+            self.driver.get(self.url)
+            get_url = self.driver.current_url
+            self.wait.until(EC.url_to_be(self.url))
 
             if get_url == self.url:
-                names = driver.find_elements(By.CSS_SELECTOR, self.css_selector_name)
-                prices = driver.find_elements(By.CSS_SELECTOR, self.css_selector_price)
+                names = self.driver.find_elements(By.CSS_SELECTOR, self.name_selector)
+                prices = self.driver.find_elements(By.CSS_SELECTOR, self.price_selector)
 
             data = []
             for name, price, in zip(names, prices):
                 if name.text and price.text:
-                    data.append((name.text.replace("Impressora 3D ", ""), price.text, self.extract_website_name(self.url).capitalize()))
-
-            driver.quit()
-
+                    data.append((name.text.replace("Impressora 3D ", "").replace("3D Printer", "").strip(), price.text.replace(",", ".").replace("from $", "").replace("€", "").strip(), self.extract_website_name(self.url).capitalize()))
             return data
+
         except Exception as error:
             print("Error on scraping data from website\n", error)
             exit(1)
+
+        finally:
+            self.driver.quit()
