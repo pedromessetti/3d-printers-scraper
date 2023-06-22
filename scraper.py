@@ -6,18 +6,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-def extract_website_name(url):
-    pattern = r"https?://(?:www\.)?(.*?)\."
-    match = re.search(pattern, url)
-    
-    if match:
-        return match.group(1)
-    else:
-        return None
 
 class Scraper:
-    def __init__(self, url):
+    def __init__(self, url, css_selector_name, css_selector_price):
         self.url = url
+        self.css_selector_name = css_selector_name
+        self.css_selector_price = css_selector_price
 
     @staticmethod
     def extract_website_name(url):
@@ -40,12 +34,13 @@ class Scraper:
             wait.until(EC.url_to_be(self.url))
 
             if get_url == self.url:
-                names = driver.find_elements(By.CSS_SELECTOR, "span.produc-card__name__link")
-                prices = driver.find_elements(By.CSS_SELECTOR, "span.value")
+                names = driver.find_elements(By.CSS_SELECTOR, self.css_selector_name)
+                prices = driver.find_elements(By.CSS_SELECTOR, self.css_selector_price)
 
             data = []
             for name, price, in zip(names, prices):
-                data.append((name.text, price.text, self.extract_website_name(self.url)))
+                if name.text and price.text:
+                    data.append((name.text.replace("Impressora 3D ", ""), price.text, self.extract_website_name(self.url).capitalize()))
 
             driver.quit()
 
